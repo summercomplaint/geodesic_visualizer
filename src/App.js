@@ -1,8 +1,10 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { findEndpoints } from './mathUtils.mjs';
+import { complex} from 'mathjs'
+
 
 const HyperbolicDisk = () => {
   const canvasRef = useRef(null);
-  const [points, setPoints] = useState([]);
   const [selectedPoints, setSelectedPoints] = useState([]);
 
   const width = 600;
@@ -14,47 +16,19 @@ const HyperbolicDisk = () => {
   const canvasToDisk = (canvasX, canvasY) => {
     const x = (canvasX - center.x) / radius;
     const y = (canvasY - center.y) / radius;
-    return { x, y };
+    return complex(x,y);
   };
 
   // Convert disk coordinates to canvas coordinates
-  const diskToCanvas = (diskX, diskY) => {
-    const x = diskX * radius + center.x;
-    const y = diskY * radius + center.y;
+  const diskToCanvas = (z) => {
+    const x = z.re * radius + center.x;
+    const y = z.im * radius + center.y;
     return { x, y };
   };
 
   // Check if point is inside unit disk
-  const isInDisk = (x, y) => {
-    return x * x + y * y < 0.99; // Slightly less than 1 for numerical stability
-  };
-
-  // Compute hyperbolic geodesic between two points in the disk
-  // Returns null for diameter (straight line through origin), 
-  // or circle parameters {cx, cy, r} for the orthogonal circle
-  const computeGeodesic = (p1, p2) => {
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    
-    // Check if points are approximately collinear with origin
-    const det = p1.x * p2.y - p1.y * p2.x;
-    if (Math.abs(det) < 0.001) {
-      return null; // Straight line through origin
-    }
-
-    // The geodesic is part of a circle orthogonal to the unit circle
-    // We need to find the center and radius of this circle
-    
-    // Using the formula for orthogonal circle
-    const p1Sq = p1.x * p1.x + p1.y * p1.y;
-    const p2Sq = p2.x * p2.x + p2.y * p2.y;
-    
-    const cx = ((p2.y - p1.y) * (p1Sq - p2Sq) + 2 * (p1.y * p2Sq - p2.y * p1Sq)) / (2 * det);
-    const cy = ((p1.x - p2.x) * (p1Sq - p2Sq) + 2 * (p2.x * p1Sq - p1.x * p2Sq)) / (2 * det);
-    
-    const r = Math.sqrt(cx * cx + cy * cy - 1);
-    
-    return { cx, cy, r };
+  const isInDisk = (z) => {
+    return z.abs() < 0.99; // Slightly less than 1 for numerical stability
   };
 
   // Draw everything
@@ -77,59 +51,28 @@ const HyperbolicDisk = () => {
     ctx.lineWidth = 2;
     ctx.stroke();
     
-    // Draw geodesics between selected points
+    // endpoints of geodesics
     if (selectedPoints.length === 2) {
-      const [p1, p2] = selectedPoints;
-      const geodesic = computeGeodesic(p1, p2);
-      
-      ctx.strokeStyle = '#2563eb';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      
-      if (geodesic === null) {
-        // Straight line through origin
-        const canvas1 = diskToCanvas(p1.x, p1.y);
-        const canvas2 = diskToCanvas(p2.x, p2.y);
-        ctx.moveTo(canvas1.x, canvas1.y);
-        ctx.lineTo(canvas2.x, canvas2.y);
-      } else {
-        // Arc of circle
-        const canvasCenter = diskToCanvas(geodesic.cx, geodesic.cy);
-        const canvasRadius = geodesic.r * radius;
-        
-        // Calculate angles
-        const angle1 = Math.atan2(p1.y - geodesic.cy, p1.x - geodesic.cx);
-        const angle2 = Math.atan2(p2.y - geodesic.cy, p2.x - geodesic.cx);
-        
-        // Draw the arc (need to determine which arc to draw)
-        let startAngle = angle1;
-        let endAngle = angle2;
-        
-        // Ensure we draw the arc that stays inside the disk
-        const midAngle = (angle1 + angle2) / 2;
-        const testPoint = {
-          x: geodesic.cx + Math.cos(midAngle) * geodesic.r,
-          y: geodesic.cy + Math.sin(midAngle) * geodesic.r
-        };
-        
-        if (!isInDisk(testPoint.x, testPoint.y)) {
-          // Draw the other arc
-          if (endAngle > startAngle) {
-            endAngle -= 2 * Math.PI;
-          } else {
-            endAngle += 2 * Math.PI;
-          }
-        }
-        
-        ctx.arc(canvasCenter.x, canvasCenter.y, canvasRadius, startAngle, endAngle);
-      }
-      
-      ctx.stroke();
+      const [p1,p2]=selectedPoints
+  
+      const endpoints = findEndpoints(p1,p2)
+      console.log("endpoints", endpoints)
+    
+      endpoints.forEach((p, i) => {
+        const canvas = diskToCanvas(p);
+        ctx.beginPath();
+        ctx.arc(canvas.x, canvas.y, 6, 0, 2 * Math.PI);
+        ctx.fillStyle = i === 0 ? '#a200ffff' : '#1f16a3ff';
+        ctx.fill();
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      });
     }
     
     // Draw points
     selectedPoints.forEach((p, i) => {
-      const canvas = diskToCanvas(p.x, p.y);
+      const canvas = diskToCanvas(p);
       ctx.beginPath();
       ctx.arc(canvas.x, canvas.y, 6, 0, 2 * Math.PI);
       ctx.fillStyle = i === 0 ? '#dc2626' : '#16a34a';
@@ -148,7 +91,7 @@ const HyperbolicDisk = () => {
     
     const diskPoint = canvasToDisk(canvasX, canvasY);
     
-    if (isInDisk(diskPoint.x, diskPoint.y)) {
+    if (isInDisk(diskPoint)) {
       if (selectedPoints.length < 2) {
         setSelectedPoints([...selectedPoints, diskPoint]);
       } else {
