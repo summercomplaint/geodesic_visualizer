@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { findEndpoints } from './mathUtils.mjs';
+import { findEndpoints, findCircle} from './mathUtils.mjs';
 import { complex} from 'mathjs'
 
 
@@ -51,6 +51,15 @@ const HyperbolicDisk = () => {
     ctx.lineWidth = 2;
     ctx.stroke();
     
+    //draw center point
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, 6, 0, 2 * Math.PI);
+    ctx.fillStyle = "black";
+    ctx.fill();
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
     // endpoints of geodesics
     if (selectedPoints.length === 2) {
       const [p1,p2]=selectedPoints
@@ -68,6 +77,22 @@ const HyperbolicDisk = () => {
         ctx.lineWidth = 2;
         ctx.stroke();
       });
+      const [e1,e2]=endpoints
+      const circledata = findCircle(e1,e2)
+    
+      console.log("center",circledata)
+      const c=diskToCanvas(circledata.circCenter)
+      
+      const trueRadius=radius*circledata.radius
+      
+      
+        ctx.beginPath();
+        ctx.arc(c.x,c.y, trueRadius, circledata.phi1, circledata.phi2);
+  
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
     }
     
     // Draw points
