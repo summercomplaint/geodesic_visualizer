@@ -1,0 +1,32 @@
+ for (let i=2;i<8;i++){
+      const nexter=octVertices[(k+i)%8]
+      const mappedNexter=deckMap(e1,e2,next,curr,nexter)
+
+      canvas
+      const neighbor=octVertices[(k+i-1)%8]
+      const mappedNeighbor=deckMap(e1,e2,next,curr,neighbor)
+      
+      drawGeod(ctx,mappedNeighbor,mappedNexter,"#818181ff")
+      }
+
+      if (k==0){
+      const canvas=diskToCanvas(mappedNexter)
+      const startcanvas=(diskToCanvas(nexter))
+      drawPoint(ctx,startcanvas.x,startcanvas.y,"#1adb14ff")
+      drawPoint(ctx,canvas.x,canvas.y,"#ff0000ff")
+      }
+
+
+       for (let k=0; k<8;k++) {
+        const curr=octVertices[k]
+        const next=octVertices[(k+1)%8]
+        const [s1,s2] = findEndpoints(curr,next)
+        drawGeod(ctx, slideMap(s1,s2, curr,next, e1),slideMap(s1,s2, curr,next, e2), "#ff0000ff")
+      }
+
+      const x=complex(0.5,0.5)
+const y=complex(0.2,-0.3)
+const u=complex(-0.1,0.8)
+const v=complex(-0.5,0.2)
+
+console.log(geodToGeod(x,y,u,v,complex(0.2001,-0.3)))
