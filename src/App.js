@@ -1,9 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { findEndpoints, findCircle,partialCircle, slideMap, geodToGeod} from './mathUtils.mjs';
+import { findEndpoints, findCircle,partialCircle, getTranslates,moveInside,extendPath} from './mathUtils.mjs';
 import { complex} from 'mathjs'
 
 
 const HyperbolicDisk = () => {
+
+      const [shiftLifts, setShiftLifts] = useState(false);
+    const [inLifts, setInLifts] = useState(false);
   const canvasRef = useRef(null);
   const [selectedPoints, setSelectedPoints] = useState([]);
 
@@ -11,6 +14,12 @@ const HyperbolicDisk = () => {
   const height = 600;
   const center = { x: width / 2, y: height / 2 };
   const radius = 250;
+
+  const grey="#bbbbbbff"
+  const l = 2**(-1/4)
+  const octVertices= Array.from({length: 8}, (_, i) =>
+    complex({abs: l, arg:  i * 2 * Math.PI / 8}))
+  
 
   // Convert canvas coordinates to disk coordinates (-1 to 1)
   const canvasToDisk = (canvasX, canvasY) => {
@@ -41,7 +50,7 @@ const HyperbolicDisk = () => {
     ctx.stroke();
   }
 
-  const drawGeod=(ctx,p1,p2,color, partial=false)=>{
+  const drawGeod=(ctx,p1,p2,color, partial=false,thickness=1)=>{
 
     let circledata=0
     if (partial===false){
@@ -58,53 +67,39 @@ const HyperbolicDisk = () => {
     ctx.beginPath();
     ctx.arc(c.x,c.y, trueRadius, circledata.phi1, circledata.phi2);
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = thickness;
     ctx.stroke();
   }
-
   
-  const getTranslates=(coords)=>{
-      const indices=[0,1,4,5]
-      const newCoords=[]
-      for (const coord of coords){
-        const [p1,p2]=coord
+  //const rainbow=['#1800a1ff', '#0081a1ff','#00a148ff','#91a100ff', '#a17600ff', '#a14000ff', '#a10000ff', '#a1007eff', '#6e00a1ff']
+  const rainbow=['#000000ff', '#333333ff','#4f5050ff','#696969ff', '#818181ff', '#b3b3b3ff', '#c9c8c8ff']
+  const massGeod=(ctx, coords, color, partial, graded=false,thickness=1)=>{
 
-        for (let k=0; k<4;k++) {
-          
-          let i=indices[k]
-          
-          const v1=octVertices[i]
-          const v2=octVertices[(i+1)%8]
-          const q1=octVertices[(i+2)%8]
-          const q2=octVertices[(i+3)%8]
-          
-          newCoords.push([geodToGeod(v1,v2,q2,q1,p1),geodToGeod(v1,v2,q2,q1,p2)])
-          newCoords.push([geodToGeod(q2,q1,v1,v2,p1),geodToGeod(q2,q1,v1,v2,p2)])
+    coords.forEach((coord, i) => {
 
-        }
-      }
-      return newCoords
+        const [p1,p2] = coord 
+        if (graded){drawGeod(ctx,p1,p2,rainbow[i%rainbow.length], partial)}
+        else{drawGeod(ctx,p1,p2,color, partial,thickness)}
+      })
   }
-  const basicTranslates=(ctx,p1,p2,color, partial=false,recursive=2)=>{
+
+  const basicTranslates=(ctx,p1,p2,color, partial=false,recursive=1)=>{
 
       let fullCoords=[[p1,p2]]
       for (let r=0;r<recursive;r++){
         let newCoords=getTranslates(fullCoords)
         fullCoords=fullCoords.concat(newCoords)
       }
-      for (const coord of fullCoords){
-        const [p1,p2] = coord 
-        drawGeod(ctx,p1,p2,color, partial)
-      }
+      massGeod(ctx,fullCoords,color, partial)
   }
 
-  const grey="#bbbbbbff"
-  const l = 2**(-1/4)
-  const octVertices= Array.from({length: 8}, (_, i) =>
-    complex({abs: l, arg:  i * 2 * Math.PI / 8}))
   
+
+
   // Draw everything
   useEffect(() => {
+
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     
@@ -126,13 +121,6 @@ const HyperbolicDisk = () => {
     //draw center point
     drawPoint(ctx,center.x,center.y,"black")
     
-    /*
-    octVertices.forEach((p, i) => {
-      const canvas = diskToCanvas(p);
-      drawPoint(ctx,canvas.x,canvas.y, "#818181ff")
-    });
-    */
-
     //drawing the octagonal lattice
     const redLat='#ff5959ff'
     const yellowLat='#ffdd48ff'
@@ -153,15 +141,41 @@ const HyperbolicDisk = () => {
       const [p1,p2]=selectedPoints
   
       const endpoints = findEndpoints(p1,p2)
-      const [e1,e2]=endpoints
-      endpoints.forEach((p, i) => {
+      
+      endpoints.forEach((p, ) => {
         const endpt=diskToCanvas(p)
         drawPoint(ctx,endpt.x,endpt.y,'#000000ff')
 
       });
       
-      drawGeod(ctx,p1,p2,"black",false)
-      //basicTranslates(ctx,p1,p2,false)
+      
+      if (shiftLifts){
+        basicTranslates(ctx,p1,p2,grey,false,3)
+      }
+      if (inLifts){
+      
+      const its=6
+      const leftCoords=extendPath(p1,p2,its)
+      
+      massGeod(ctx,leftCoords,grey, false,2)
+      const rightCoords=extendPath(p2,p1,its)
+      
+      massGeod(ctx,rightCoords,grey, false,true,2)
+      
+      /*
+      const [x1,x2]=moveInside(p1,p2)
+      drawGeod(ctx,x1,x2,grey,false,2)
+      
+      const [y1,y2]=moveInside(p2,p1)
+      drawGeod(ctx,y1,y2,grey,false,2)
+      */
+      }
+
+      drawGeod(ctx,p1,p2,"black",false,2)
+      
+      
+      
+      
 
     }
     
@@ -171,12 +185,14 @@ const HyperbolicDisk = () => {
       drawPoint(ctx,canvas.x,canvas.y, "#0026ff")
     });
     
-  }, [selectedPoints]);
+  }, [selectedPoints,shiftLifts,inLifts]);
 
 
 
   //event handling v
 
+
+  
   const handleClick = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
     const canvasX = e.clientX - rect.left;
@@ -197,6 +213,7 @@ const HyperbolicDisk = () => {
   const handleReset = () => {
     setSelectedPoints([]);
   };
+
 
   return (
     <div className="flex flex-col items-center gap-4 p-8 bg-gray-50 min-h-screen">
@@ -224,6 +241,29 @@ const HyperbolicDisk = () => {
             {selectedPoints.length === 1 && "Select second point"}
             {selectedPoints.length === 2 && "Click to start over"}
           </div>
+          <fieldset>
+  <legend>Draw which lifts?:</legend>
+<div>
+<input 
+  type="checkbox" 
+  id="shiftLifts" 
+  checked={shiftLifts}
+  onChange={(e) => setShiftLifts(e.target.checked)}
+/>
+<label htmlFor="shiftLifts"> Shifted Lifts</label>
+</div>
+
+<div>
+<input 
+  type="checkbox" 
+  id="inLifts" 
+  checked={inLifts}
+  onChange={(e) => setInLifts(e.target.checked)}
+/>
+<label htmlFor="inLifts"> Path Continued Inside</label>
+
+</div>
+</fieldset>
         </div>
       </div>
     </div>

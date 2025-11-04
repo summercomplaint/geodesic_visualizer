@@ -1,5 +1,9 @@
 import { complex, add, multiply} from 'mathjs'
 
+ const l = 2**(-1/4)
+  const octVertices= Array.from({length: 8}, (_, i) =>
+    complex({abs: l, arg:  i * 2 * Math.PI / 8}))
+  
 
 export const phiA = (z,a) => {
     // defines phi_a(z)=(z-a)/(1-z\bar{a})
@@ -142,14 +146,86 @@ return psiPhiZ
 
 export const geodToGeod=(p1,p2,q1,q2,z)=>{
     //sends the geodesic through p1,p2 to the geodesic through q1,q2
-    const [b1,b2]=findEndpoints(p1,p2)
-    const [d1,d2]=findEndpoints(q1,q2)
+    const [b1, ]=findEndpoints(p1,p2)
+    const [d1, ]=findEndpoints(q1,q2)
     return genMob(p1,b1,p2, q1,d1,q2,z)
 }
 
- const x=complex(0.5,0.5)
-const y=complex(0.2,-0.3)
-const u=complex(-0.1,0.8)
-const v=complex(-0.5,0.2)
+export const getTranslates=(coords)=>{
+    // given a pair of coordinates, gives the coordinates for the mapped version in the neighboring octagons
+    // note that this maps v1 to q2 and v2 to q1. whatever.
+      const indices=[0,1,4,5]
+      const newCoords=[]
+      for (const coord of coords){
+        const [p1,p2]=coord
 
-console.log(geodToGeod(x,y,u,v,complex(0.2001,-0.3)))
+        for (let k=0; k<4;k++) {
+          
+          let i=indices[k]
+          
+          const v1=octVertices[i]
+          const v2=octVertices[(i+1)%8]
+          const q1=octVertices[(i+2)%8]
+          const q2=octVertices[(i+3)%8]
+          
+          newCoords.push([geodToGeod(v1,v2,q2,q1,p1),geodToGeod(v1,v2,q2,q1,p2)])
+          newCoords.push([geodToGeod(q2,q1,v1,v2,p1),geodToGeod(q2,q1,v1,v2,p2)])
+
+        }
+      }
+      return newCoords
+  }
+
+export const moveInside=(p1,p2)=>{
+    // find the octant and applies the appropaite map
+    // NOTE im using a backwards standard from the function above. it makes more sense in that context.
+    // also i loooove conflicting standards
+    const [e1,]=findEndpoints(p1,p2)
+    const theta=e1.arg()
+
+    let vset=[0,0,0,0]
+    if (theta>=0 && theta<Math.PI/4){ 
+        vset=[0,1,3,2]
+    }
+    if (theta>=Math.PI/4 && theta<Math.PI/2){
+        vset=[1,2,4,3]
+    }
+    if (theta>=Math.PI/2 && theta<3*Math.PI/4){
+        vset=[2,3,1,0]
+    }
+    if (theta>3*Math.PI/4){
+        vset=[3,4,2,1]
+    }
+    if (theta<-3*Math.PI/4){
+        vset=[4,5,7,6]
+    }
+    if (theta<-Math.PI/2 && theta>=-3*Math.PI/4){
+        vset=[5,6,0,7]
+    }
+    if (theta<-Math.PI/4 && theta>=-Math.PI/2){
+        vset=[6,7,5,4]
+    }
+    if (theta<0 && theta>=-Math.PI/4){
+        vset=[0,7,5,6]
+    }
+
+    const u1=octVertices[vset[0]]
+    const u2=octVertices[vset[1]]
+    const v1=octVertices[vset[2]]
+    const v2=octVertices[vset[3]]
+    return [geodToGeod(u1,u2,v1,v2,p1),geodToGeod(u1,u2,v1,v2,p2)]
+}
+
+export const extendPath=(p1,p2, steps)=>{
+    let coords=[]
+    console.log("start extend")
+
+    for (let k=0;k<steps;k++){
+        console.log("extending")
+        let [q1,q2]=moveInside(p1,p2)
+        coords.push([q1,q2])
+        p1=q1
+        p2=q2
+    }
+    return coords
+}
